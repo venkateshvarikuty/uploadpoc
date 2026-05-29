@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Portal</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f9;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .upload-container {
+            width: 100%;
+            max-width: 500px;
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+        }
+
+        .title {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #222;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        input[type="text"],
+        input[type="file"] {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid #dcdcdc;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s ease;
+        }
+
+        input[type="text"]:focus,
+        input[type="file"]:focus {
+            outline: none;
+            border-color: #0077ff;
+        }
+
+        .upload-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            background: #0077ff;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .upload-btn:hover {
+            background: #005ed1;
+        }
+
+        .response-box {
+            margin-top: 25px;
+            padding: 15px;
+            background: #f0f4f8;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #333;
+            white-space: pre-wrap;
+            word-break: break-word;
+            display: none;
+        }
+
+        .success {
+            border-left: 5px solid #28a745;
+        }
+
+        .error {
+            border-left: 5px solid #dc3545;
+        }
+
+    </style>
+</head>
+
+<body>
+
+<div class="upload-container">
+
+    <div class="title">
+        Upload Portal
+    </div>
+
+    <div class="subtitle">
+        Upload booking case files securely into AEM DAM
+    </div>
+
+    <form id="uploadForm" enctype="multipart/form-data">
+
+        <div class="form-group">
+            <label>Client</label>
+            <input type="text" name="client" placeholder="Enter Client Name" required />
+        </div>
+
+        <div class="form-group">
+            <label>Booking ID</label>
+            <input type="text" name="bookingId" placeholder="Enter Booking ID" required />
+        </div>
+
+        <div class="form-group">
+            <label>Case ID</label>
+            <input type="text" name="caseId" placeholder="Enter Case ID" required />
+        </div>
+
+        <div class="form-group">
+            <label>Select File</label>
+            <input type="file" name="file" required />
+        </div>
+
+        <button class="upload-btn" type="submit">
+            Upload File
+        </button>
+
+    </form>
+
+    <div id="responseBox" class="response-box"></div>
+
+</div>
+
+<script>
+
+document.getElementById("uploadForm").addEventListener("submit", async function(e) {
+
+    e.preventDefault();
+
+    const responseBox = document.getElementById("responseBox");
+
+    responseBox.style.display = "block";
+    responseBox.className = "response-box";
+    responseBox.innerHTML = "Uploading...";
+
+    const formData = new FormData(this);
+
+    try {
+
+        const response = await fetch("/bin/upload", {
+            method: "POST",
+            body: formData
+        });
+
+        const result = await response.text();
+
+        if (response.ok) {
+
+            responseBox.classList.add("success");
+
+        } else {
+
+            responseBox.classList.add("error");
+        }
+
+        responseBox.innerHTML = result;
+
+    } catch (error) {
+
+        responseBox.classList.add("error");
+
+        responseBox.innerHTML =
+            "Upload failed.<br><br>" + error;
+    }
+
+});
+
+</script>
+
+</body>
+</html>

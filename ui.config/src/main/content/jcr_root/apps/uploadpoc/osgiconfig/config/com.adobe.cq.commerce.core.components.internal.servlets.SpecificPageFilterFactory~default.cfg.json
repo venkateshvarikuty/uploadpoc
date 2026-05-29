@@ -1,0 +1,3 @@
+{
+  "sling.filter.pattern": "/content/uploadpoc/.*?/(category-page|product-page)"
+}
