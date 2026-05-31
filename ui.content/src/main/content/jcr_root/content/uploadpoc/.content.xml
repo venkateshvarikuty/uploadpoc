@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0" xmlns:cq="http://www.day.com/jcr/cq/1.0" xmlns:jcr="http://www.jcp.org/jcr/1.0" xmlns:nt="http://www.jcp.org/jcr/nt/1.0"
+    jcr:primaryType="cq:Page">
+    <jcr:content
+        cq:allowedTemplates="[/conf/uploadpoc/settings/wcm/templates/.*,/apps/uploadpoc/templates/configuration-page]"
+        cq:contextHubPath="/etc/cloudsettings/default/contexthub"
+        cq:contextHubSegmentsPath="/etc/segmentation/contexthub"
+        cq:deviceGroups="[/etc/mobile/groups/responsive]"
+        cq:lastModified="{Date}2017-08-11T09:05:41.992+10:00"
+        cq:lastModifiedBy="admin"
+        jcr:primaryType="nt:unstructured"
+        jcr:title="uploadpoc "
+        sling:redirect="true"
+        sling:redirectStatus="{Long}302"
+        sling:resourceType="uploadpoc/master/structure/core/page/v1/page"
+        sling:configRef ="/conf/uploadpoc/caconfig"
+        redirectTarget="/content/uploadpoc/en">
+        <image jcr:primaryType="nt:unstructured">
+            <file/>
+        </image>
+    </jcr:content>
+</jcr:root>

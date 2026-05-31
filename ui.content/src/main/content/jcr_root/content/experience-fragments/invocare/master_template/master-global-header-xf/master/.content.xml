@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jcr:root xmlns:jcr="http://www.jcp.org/jcr/1.0" xmlns:nt="http://www.jcp.org/jcr/nt/1.0" xmlns:cq="http://www.day.com/jcr/cq/1.0" xmlns:sling="http://sling.apache.org/jcr/sling/1.0"
+    jcr:primaryType="cq:Page">
+    <jcr:content
+        cq:lastModified="{Date}2025-12-08T22:48:59.509+05:30"
+        cq:lastModifiedBy="admin"
+        cq:tags="[]"
+        cq:template="/conf/invocare/settings/wcm/templates/master-experience-fragment-template"
+        cq:xfMasterVariation="{Boolean}true"
+        jcr:primaryType="cq:PageContent"
+        jcr:title="master-global-header-xf"
+        sling:resourceType="invocare/master/structure/core/xfpage/v2/xfpage">
+        <root
+            jcr:lastModified="{Date}2025-12-08T17:36:50.491+05:30"
+            jcr:lastModifiedBy="admin"
+            jcr:primaryType="nt:unstructured"
+            sling:resourceType="wcm/foundation/components/responsivegrid"/>
+    </jcr:content>
+</jcr:root>
