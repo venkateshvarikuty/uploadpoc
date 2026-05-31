@@ -206,7 +206,7 @@ public class MoveAssetBasedOnMetadataProcess
                 LOG.warn(
                         "Unsupported assetType {}",
                         assetType);
-                return null;
+                return "/content/dam/wknd/en/site/workflow-upload";
         }
     }
 }
