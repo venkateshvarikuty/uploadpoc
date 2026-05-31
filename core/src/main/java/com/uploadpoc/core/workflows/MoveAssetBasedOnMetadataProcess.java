@@ -10,9 +10,13 @@ import com.adobe.granite.workflow.metadata.MetaDataMap;
 import org.apache.sling.api.resource.Resource;
 import org.apache.sling.api.resource.ResourceResolver;
 
+import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Random;
 
 @Component(
         service = WorkflowProcess.class,
@@ -25,6 +29,18 @@ public class MoveAssetBasedOnMetadataProcess
     private static final Logger LOG =
             LoggerFactory.getLogger(
                     MoveAssetBasedOnMetadataProcess.class);
+
+    private static final String[] ASSET_TYPES = {
+            "brand",
+            "product",
+            "marketing"
+    };
+
+    @Activate
+    protected void activate() {
+        LOG.info(
+                "MoveAssetBasedOnMetadataProcess activated successfully");
+    }
 
     @Override
     public void execute(
@@ -40,58 +56,63 @@ public class MoveAssetBasedOnMetadataProcess
 
         LOG.info("=================================================");
         LOG.info("Move Asset Workflow Started");
-        LOG.info("Asset Path : {}", assetPath);
+        LOG.info("Payload Path : {}", assetPath);
         LOG.info("=================================================");
 
         try {
 
             ResourceResolver resolver =
-                    workflowSession.adaptTo(ResourceResolver.class);
+                    workflowSession.adaptTo(
+                            ResourceResolver.class);
 
             if (resolver == null) {
                 LOG.error("ResourceResolver is null");
                 return;
             }
 
+            LOG.info("Successfully obtained ResourceResolver");
+
             Resource assetResource =
                     resolver.getResource(assetPath);
 
             if (assetResource == null) {
+
                 LOG.error(
                         "Asset resource not found for path {}",
                         assetPath);
+
                 return;
             }
 
-            LOG.info("Asset resource found");
+            LOG.info(
+                    "Asset resource found : {}",
+                    assetResource.getPath());
 
             Resource metadataResource =
                     assetResource.getChild(
                             "jcr:content/metadata");
 
             if (metadataResource == null) {
-                LOG.error(
-                        "Metadata node not found for asset {}",
-                        assetPath);
-                return;
+
+                LOG.warn(
+                        "Metadata node not found. Continuing with random asset type.");
+
+            } else {
+
+                LOG.info(
+                        "Metadata resource found : {}",
+                        metadataResource.getPath());
             }
 
-            LOG.info("Metadata node found");
+            Random random = new Random();
 
             String assetType =
-                    metadataResource.getValueMap()
-                            .get("assetType", String.class);
+                    ASSET_TYPES[random.nextInt(
+                            ASSET_TYPES.length)];
 
             LOG.info(
-                    "Metadata assetType value : {}",
+                    "Randomly selected assetType : {}",
                     assetType);
-
-            if (assetType == null || assetType.isEmpty()) {
-                LOG.warn(
-                        "assetType metadata is empty for {}",
-                        assetPath);
-                return;
-            }
 
             String targetFolder =
                     getTargetFolder(assetType);
@@ -109,13 +130,27 @@ public class MoveAssetBasedOnMetadataProcess
                 return;
             }
 
+            Resource targetFolderResource =
+                    resolver.getResource(targetFolder);
+
+            if (targetFolderResource == null) {
+
+                LOG.error(
+                        "Target folder does not exist : {}",
+                        targetFolder);
+
+                return;
+            }
+
             String assetName =
                     assetPath.substring(
                             assetPath.lastIndexOf("/") + 1);
 
-            LOG.info("Asset Name : {}", assetName);
+            LOG.info(
+                    "Asset name : {}",
+                    assetName);
 
-            String destination =
+            String destinationPath =
                     targetFolder + "/" + assetName;
 
             LOG.info(
@@ -124,19 +159,7 @@ public class MoveAssetBasedOnMetadataProcess
 
             LOG.info(
                     "Destination Path : {}",
-                    destination);
-
-            Resource destinationResource =
-                    resolver.getResource(targetFolder);
-
-            if (destinationResource == null) {
-
-                LOG.error(
-                        "Target folder does not exist {}",
-                        targetFolder);
-
-                return;
-            }
+                    destinationPath);
 
             AssetManager assetManager =
                     resolver.adaptTo(
@@ -145,50 +168,45 @@ public class MoveAssetBasedOnMetadataProcess
             if (assetManager == null) {
 
                 LOG.error(
-                        "AssetManager adaptation failed");
+                        "Unable to adapt ResourceResolver to AssetManager");
 
                 return;
             }
 
             LOG.info(
-                    "Initiating asset move operation");
+                    "Initiating move operation");
 
             assetManager.moveAsset(
                     assetPath,
-                    destination);
+                    destinationPath);
 
             resolver.commit();
 
-            LOG.info(
-                    "Asset moved successfully");
-
-            LOG.info(
-                    "Moved From : {}",
-                    assetPath);
-
-            LOG.info(
-                    "Moved To   : {}",
-                    destination);
-
-            LOG.info(
-                    "Move Asset Workflow Completed Successfully");
+            LOG.info("====================================");
+            LOG.info("Asset moved successfully");
+            LOG.info("Moved From : {}", assetPath);
+            LOG.info("Moved To   : {}", destinationPath);
+            LOG.info("Workflow completed successfully");
+            LOG.info("====================================");
 
         } catch (Exception e) {
 
             LOG.error(
-                    "Exception occurred while moving asset {}",
+                    "Exception occurred while processing asset {}",
                     assetPath,
                     e);
 
-            throw new WorkflowException(e);
+            throw new WorkflowException(
+                    "Error while moving asset",
+                    e);
         }
     }
 
     private String getTargetFolder(
             String assetType) {
 
-        LOG.debug(
-                "Resolving target folder for assetType {}",
+        LOG.info(
+                "Resolving target folder for assetType : {}",
                 assetType);
 
         switch (assetType.toLowerCase()) {
@@ -203,9 +221,11 @@ public class MoveAssetBasedOnMetadataProcess
                 return "/content/dam/marketing";
 
             default:
+
                 LOG.warn(
-                        "Unsupported assetType {}",
+                        "Unsupported assetType : {}",
                         assetType);
+
                 return "/content/dam/wknd/en/site/workflow-upload";
         }
     }
