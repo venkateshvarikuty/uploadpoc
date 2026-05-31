@@ -212,13 +212,13 @@ public class MoveAssetBasedOnMetadataProcess
         switch (assetType.toLowerCase()) {
 
             case "brand":
-                return "/content/dam/brands";
+                return "/content/dam/uploadpoc/brands";
 
             case "product":
-                return "/content/dam/products";
+                return "/content/dam/uploadpoc/products";
 
             case "marketing":
-                return "/content/dam/marketing";
+                return "/content/dam/uploadpoc/marketing";
 
             default:
 
@@ -226,7 +226,7 @@ public class MoveAssetBasedOnMetadataProcess
                         "Unsupported assetType : {}",
                         assetType);
 
-                return "/content/dam/wknd/en/site/workflow-upload";
+                return "/content/dam/uploadpoc/others";
         }
     }
 }
