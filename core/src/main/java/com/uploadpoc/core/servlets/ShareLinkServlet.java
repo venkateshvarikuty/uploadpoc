@@ -27,6 +27,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -303,7 +304,13 @@ public class ShareLinkServlet extends SlingAllMethodsServlet {
             String responseBody = "";
             if (is != null) {
                 try (InputStream in = is) {
-                    responseBody = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+                    ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                    byte[] data = new byte[4096];
+                    int bytesRead;
+                    while ((bytesRead = in.read(data, 0, data.length)) != -1) {
+                        buffer.write(data, 0, bytesRead);
+                    }
+                    responseBody = buffer.toString(StandardCharsets.UTF_8.name());
                 }
             }
 
