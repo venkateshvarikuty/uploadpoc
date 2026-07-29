@@ -30,6 +30,7 @@
 # Allow Upload POC custom servlets
 /0050 { /type "allow" /method "GET" /url "/bin/assetShareLink" }
 /0051 { /type "allow" /method "POST" /url "/bin/upload" }
+/0052 { /type "allow" /method '(GET|POST)' /url "/bin/cartology/sharelink" }
 
 # Deny content grabbing for greedy queries and prevent un-intended self DOS attacks
 /0100 { /type "deny" /selectors '(feed|rss|pages|languages|blueprint|infinity|tidy|sysview|docview|query|[0-9-]+|jcr:content)' /extension '(json|xml|html|feed)' }
