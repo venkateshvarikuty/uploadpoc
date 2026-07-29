@@ -11,3 +11,7 @@ $include "./default_filters.any"
 
 # Allow manifest.webmanifest files located in the content
 /0102 { /type "allow" /extension "webmanifest" /path "/content/*/manifest" }
+
+# Allow Upload POC custom servlets
+/0200 { /type "allow" /method "GET" /url "/bin/assetShareLink" }
+/0201 { /type "allow" /method "POST" /url "/bin/upload" }
