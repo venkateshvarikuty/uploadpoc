@@ -1,5 +1,10 @@
 package com.uploadpoc.core.servlets;
 
+import com.day.cq.search.PredicateGroup;
+import com.day.cq.search.Query;
+import com.day.cq.search.QueryBuilder;
+import com.day.cq.search.result.Hit;
+import com.day.cq.search.result.SearchResult;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -11,30 +16,45 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
-import org.apache.sling.api.resource.Resource;
 import org.apache.sling.api.resource.ResourceResolver;
 import org.apache.sling.api.servlets.SlingSafeMethodsServlet;
 import org.osgi.service.component.annotations.Component;
+import org.osgi.service.component.annotations.Reference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.jcr.RepositoryException;
+import javax.jcr.Session;
 import javax.servlet.Servlet;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Calendar;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.TimeZone;
 
 /**
- * Servlet that generates a share link for a DAM folder asset by calling
- * AEM's OOTB repository operations API (the same endpoint the Assets UI uses).
+ * Open API servlet for Workfront integration.
+ * Searches for DAM assets by metadata and generates shareable links
+ * using AEM's OOTB repository operations API.
  * <p>
- * Endpoint: GET /bin/assetShareLink
+ * Endpoint: GET /bin/cartology/sharelink
+ * <p>
+ * Query Parameters:
+ *   - channel       (optional) : cartology:channel metadata value
+ *   - campaignType  (optional) : cartology:campaignType metadata value
+ *   - mediaFormat   (optional) : cartology:mediaFormat metadata value
+ *   - folderPath    (optional) : direct DAM folder path (skips metadata search)
+ * <p>
+ * Response: JSON with shareLink, shareToken, expirationDate, matchedAssets
  */
 @Component(service = Servlet.class, property = {
-        "sling.servlet.paths=/bin/assetShareLink",
+        "sling.servlet.paths=/bin/cartology/sharelink",
         "sling.servlet.methods=GET"
 })
 public class AssetShareLinkServlet extends SlingSafeMethodsServlet {
@@ -42,44 +62,67 @@ public class AssetShareLinkServlet extends SlingSafeMethodsServlet {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LoggerFactory.getLogger(AssetShareLinkServlet.class);
 
-    /**
-     * Hardcoded folder path for now
-     */
-    private static final String FOLDER_PATH = "/content/dam/woolworths-mrm/cartology/templates/pos/special/a3-bin-card";
+    private static final String SEARCH_ROOT_PATH =
+            "/content/dam/woolworths-mrm/cartology";
+    private static final String REPOSITORY_OPERATIONS_PATH =
+            "/adobe/repository/;api=operations;t=";
+    private static final String CONTENT_TYPE_ASSET_OPERATION =
+            "application/vnd.adobe.asset-operation+json";
+
+    @Reference
+    private QueryBuilder queryBuilder;
 
     @Override
     protected void doGet(SlingHttpServletRequest request,
-            SlingHttpServletResponse response)
+                         SlingHttpServletResponse response)
             throws ServletException, IOException {
 
         response.setContentType("application/json");
         response.setCharacterEncoding("utf-8");
 
-        ResourceResolver resolver = request.getResourceResolver();
         JsonObject jsonResponse = new JsonObject();
 
-        // Validate that the folder exists
-        Resource folderResource = resolver.getResource(FOLDER_PATH);
-        if (folderResource == null) {
-            response.setStatus(SlingHttpServletResponse.SC_NOT_FOUND);
-            jsonResponse.addProperty("error", "Folder not found: " + FOLDER_PATH);
+        // Check for direct folder path or metadata search
+        String folderPath = request.getParameter("folderPath");
+        String channel = request.getParameter("channel");
+        String campaignType = request.getParameter("campaignType");
+        String mediaFormat = request.getParameter("mediaFormat");
+
+        List<String> assetPaths = new ArrayList<String>();
+
+        if (folderPath != null && !folderPath.trim().isEmpty()) {
+            // Direct folder path mode
+            assetPaths.add(folderPath.trim());
+        } else {
+            // Metadata search mode
+            assetPaths = findMatchingAssets(request.getResourceResolver(),
+                    channel, campaignType, mediaFormat);
+        }
+
+        if (assetPaths.isEmpty()) {
+            response.setStatus(SlingHttpServletResponse.SC_OK);
+            jsonResponse.addProperty("status", "NO_ASSETS_FOUND");
+            jsonResponse.addProperty("message",
+                    "No assets found matching the supplied metadata parameters.");
             jsonResponse.addProperty("success", false);
             response.getWriter().write(jsonResponse.toString());
             return;
         }
 
-        // Build base URL from the incoming request
+        // Build base URL
         String baseUrl = buildBaseUrl(request);
 
-        // Set expiration to 2 weeks from now (in UTC ISO format)
-        Calendar expirationDate = Calendar.getInstance();
-        expirationDate.add(Calendar.WEEK_OF_YEAR, 2);
+        // Expiration: 2 weeks from now
+        Calendar expirationCal = Calendar.getInstance();
+        expirationCal.add(Calendar.WEEK_OF_YEAR, 2);
 
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
         sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
-        String expiryDateStr = sdf.format(expirationDate.getTime());
+        String expiryDateStr = sdf.format(expirationCal.getTime());
 
-        // Build the JSON body matching the OOTB share operation
+        // Build the share operation JSON body
+        String repositoryId = request.getServerName();
+
         JsonObject requestBody = new JsonObject();
         requestBody.addProperty("op", "share");
         requestBody.addProperty("expirationDate", expiryDateStr);
@@ -87,26 +130,38 @@ public class AssetShareLinkServlet extends SlingSafeMethodsServlet {
         requestBody.addProperty("allowRenditionDownload", true);
 
         JsonArray targets = new JsonArray();
-        JsonObject target = new JsonObject();
-        target.addProperty("repo:path", FOLDER_PATH);
-        target.addProperty("repo:repositoryId", request.getServerName());
-        targets.add(target);
+        for (String path : assetPaths) {
+            JsonObject target = new JsonObject();
+            target.addProperty("repo:path", path);
+            target.addProperty("repo:repositoryId", repositoryId);
+            targets.add(target);
+        }
         requestBody.add("target", targets);
 
+        // Call the OOTB repository operations API
         try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
 
-            // POST to the OOTB repository operations endpoint
-            String operationsUrl = baseUrl
-                    + "/adobe/repository/;api=operations;t=" + System.currentTimeMillis();
+            String operationsUrl = baseUrl + REPOSITORY_OPERATIONS_PATH
+                    + System.currentTimeMillis();
 
             HttpPost httpPost = new HttpPost(operationsUrl);
 
-            // Basic Auth (admin:admin for POC)
-            String auth = Base64.getEncoder()
-                    .encodeToString("admin:admin".getBytes(StandardCharsets.UTF_8));
-            httpPost.setHeader("Authorization", "Basic " + auth);
-            httpPost.setHeader("Content-Type", "application/vnd.adobe.asset-operation+json");
+            // Forward auth from incoming request, or use Basic Auth fallback
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader != null && !authHeader.isEmpty()) {
+                httpPost.setHeader("Authorization", authHeader);
+            } else {
+                // Fallback: forward cookies if present, else use Basic Auth (local POC)
+                String cookieHeader = request.getHeader("Cookie");
+                if (cookieHeader != null && !cookieHeader.isEmpty()) {
+                    httpPost.setHeader("Cookie", cookieHeader);
+                }
+                String basicAuth = Base64.getEncoder()
+                        .encodeToString("admin:admin".getBytes(StandardCharsets.UTF_8));
+                httpPost.setHeader("Authorization", "Basic " + basicAuth);
+            }
 
+            httpPost.setHeader("Content-Type", CONTENT_TYPE_ASSET_OPERATION);
             httpPost.setEntity(new StringEntity(requestBody.toString(), StandardCharsets.UTF_8));
 
             HttpResponse httpResponse = httpClient.execute(httpPost);
@@ -117,22 +172,32 @@ public class AssetShareLinkServlet extends SlingSafeMethodsServlet {
             LOG.info("Share operation response [status={}]: {}", statusCode, responseBody);
 
             if (statusCode >= 200 && statusCode < 300) {
-                JsonObject ootbResponse = JsonParser.parseString(responseBody).getAsJsonObject();
+                JsonObject ootbResponse = JsonParser.parseString(responseBody)
+                        .getAsJsonObject();
 
-                // Extract the share link from the "link" field
                 if (ootbResponse.has("link")) {
-                    jsonResponse.addProperty("shareLink", ootbResponse.get("link").getAsString());
+                    jsonResponse.addProperty("shareLink",
+                            ootbResponse.get("link").getAsString());
                 }
                 if (ootbResponse.has("shareToken")) {
-                    jsonResponse.addProperty("shareToken", ootbResponse.get("shareToken").getAsString());
+                    jsonResponse.addProperty("shareToken",
+                            ootbResponse.get("shareToken").getAsString());
                 }
 
-                jsonResponse.addProperty("folderPath", FOLDER_PATH);
                 jsonResponse.addProperty("expirationDate", expiryDateStr);
+                jsonResponse.addProperty("status", "SUCCESS");
                 jsonResponse.addProperty("success", true);
+
+                // Include matched asset paths for reference
+                JsonArray matchedPaths = new JsonArray();
+                for (String path : assetPaths) {
+                    matchedPaths.add(path);
+                }
+                jsonResponse.add("matchedAssets", matchedPaths);
 
                 response.setStatus(SlingHttpServletResponse.SC_OK);
             } else {
+                jsonResponse.addProperty("status", "ERROR");
                 jsonResponse.addProperty("error",
                         "Share operation returned status " + statusCode);
                 jsonResponse.addProperty("rawResponse", responseBody);
@@ -142,12 +207,81 @@ public class AssetShareLinkServlet extends SlingSafeMethodsServlet {
 
         } catch (Exception e) {
             LOG.error("Error creating share link", e);
-            jsonResponse.addProperty("error", "Failed to create share link: " + e.getMessage());
+            jsonResponse.addProperty("status", "ERROR");
+            jsonResponse.addProperty("error",
+                    "Failed to create share link: " + e.getMessage());
             jsonResponse.addProperty("success", false);
             response.setStatus(SlingHttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
 
         response.getWriter().write(jsonResponse.toString());
+    }
+
+    /**
+     * Searches for dam:Asset nodes under the cartology DAM root matching
+     * the given metadata property values.
+     */
+    private List<String> findMatchingAssets(ResourceResolver resolver,
+                                            String channel,
+                                            String campaignType,
+                                            String mediaFormat) {
+        List<String> assetPaths = new ArrayList<String>();
+
+        Session session = resolver.adaptTo(Session.class);
+        if (session == null) {
+            LOG.warn("Unable to obtain JCR Session; returning empty asset list.");
+            return assetPaths;
+        }
+
+        QueryBuilder builder = (this.queryBuilder != null)
+                ? this.queryBuilder
+                : resolver.adaptTo(QueryBuilder.class);
+        if (builder == null) {
+            LOG.warn("QueryBuilder not available; returning empty asset list.");
+            return assetPaths;
+        }
+
+        Map<String, String> predicateMap = new HashMap<String, String>();
+        predicateMap.put("path", SEARCH_ROOT_PATH);
+        predicateMap.put("type", "dam:Asset");
+
+        int propIndex = 1;
+        if (channel != null && !channel.trim().isEmpty()) {
+            predicateMap.put(propIndex + "_property",
+                    "jcr:content/metadata/cartology:channel");
+            predicateMap.put(propIndex + "_property.value", channel.trim());
+            propIndex++;
+        }
+        if (campaignType != null && !campaignType.trim().isEmpty()) {
+            predicateMap.put(propIndex + "_property",
+                    "jcr:content/metadata/cartology:campaignType");
+            predicateMap.put(propIndex + "_property.value", campaignType.trim());
+            propIndex++;
+        }
+        if (mediaFormat != null && !mediaFormat.trim().isEmpty()) {
+            predicateMap.put(propIndex + "_property",
+                    "jcr:content/metadata/cartology:mediaFormat");
+            predicateMap.put(propIndex + "_property.value", mediaFormat.trim());
+            propIndex++;
+        }
+        predicateMap.put("p.limit", "-1");
+
+        Query query = builder.createQuery(
+                PredicateGroup.create(predicateMap), session);
+        SearchResult result = query.getResult();
+
+        for (Hit hit : result.getHits()) {
+            try {
+                assetPaths.add(hit.getPath());
+            } catch (RepositoryException e) {
+                LOG.error("Error retrieving path from search hit", e);
+            }
+        }
+
+        LOG.info("Found {} assets matching metadata [channel={}, campaignType={}, mediaFormat={}]",
+                assetPaths.size(), channel, campaignType, mediaFormat);
+
+        return assetPaths;
     }
 
     private String buildBaseUrl(SlingHttpServletRequest request) {
