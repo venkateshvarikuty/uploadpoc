@@ -1,0 +1,18 @@
+# AEM as a Cloud Service — API Configuration
+# Allowlists IMS Client IDs for server-to-server access to AEM Author APIs
+# (including /adobe/repository/;api=operations).
+#
+# Deploy via Cloud Manager Configuration Pipeline, or for RDE:
+#   aio aem:rde:install -t env-config ./config/api.yaml
+#
+# To find your IMS Client ID:
+#   AEM Developer Console → your environment → Service Credentials → clientId
+
+kind: "API"
+version: "1.0"
+metadata:
+  envTypes: ["dev", "stage", "prod"]
+data:
+  allowedClientIDs:
+    author:
+      - "cm-p121280-e1429483-integration-0"
