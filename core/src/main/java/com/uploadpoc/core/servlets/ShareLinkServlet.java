@@ -288,6 +288,11 @@ public class ShareLinkServlet extends SlingAllMethodsServlet {
             String authHeader = request.getHeader("Authorization");
             if (authHeader != null && !authHeader.isEmpty()) {
                 conn.setRequestProperty("Authorization", authHeader);
+            } else {
+                // Fallback to Basic Auth for publish (anonymous) requests - POC only
+                String auth = java.util.Base64.getEncoder()
+                        .encodeToString("admin:admin".getBytes(StandardCharsets.UTF_8));
+                conn.setRequestProperty("Authorization", "Basic " + auth);
             }
 
             conn.setDoOutput(true);

@@ -8,6 +8,7 @@ import com.day.cq.search.result.SearchResult;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.uploadpoc.core.config.ShareLinkConfig;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
@@ -17,9 +18,12 @@ import org.apache.http.util.EntityUtils;
 import org.apache.sling.api.SlingHttpServletRequest;
 import org.apache.sling.api.SlingHttpServletResponse;
 import org.apache.sling.api.resource.ResourceResolver;
-import org.apache.sling.api.servlets.SlingSafeMethodsServlet;
+import org.apache.sling.api.servlets.SlingAllMethodsServlet;
+import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
+import org.osgi.service.component.annotations.Modified;
 import org.osgi.service.component.annotations.Reference;
+import org.osgi.service.metatype.annotations.Designate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +31,7 @@ import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.servlet.Servlet;
 import javax.servlet.ServletException;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
@@ -39,25 +44,38 @@ import java.util.Map;
 import java.util.TimeZone;
 
 /**
- * Open API servlet for Workfront integration.
+ * Secured API servlet for Workfront Fusion integration.
  * Searches for DAM assets by metadata and generates shareable links
  * using AEM's OOTB repository operations API.
  * <p>
- * Endpoint: GET /bin/cartology/sharelink
+ * <strong>Authentication:</strong> Requires an {@code Authorization: Bearer <token>}
+ * header obtained via AEM Developer Console service credentials (JWT → IMS exchange).
+ * The bearer token is forwarded to the internal repository operations API call.
+ * In local AEM SDK environments, Basic Auth fallback can be enabled via OSGi configuration.
  * <p>
- * Query Parameters:
- *   - channel       (optional) : cartology:channel metadata value
- *   - campaignType  (optional) : cartology:campaignType metadata value
- *   - mediaFormat   (optional) : cartology:mediaFormat metadata value
- *   - folderPath    (optional) : direct DAM folder path (skips metadata search)
+ * Endpoint: POST /bin/cartology/sharelink
+ * <p>
+ * JSON Request Body:
+ * <pre>
+ * {
+ *   "channel":       "(optional) cartology:channel metadata value",
+ *   "campaignType":  "(optional) cartology:campaignType metadata value",
+ *   "mediaFormat":   "(optional) cartology:mediaFormat metadata value",
+ *   "folderPath":    "(optional) direct DAM folder path (skips metadata search)"
+ * }
+ * </pre>
  * <p>
  * Response: JSON with shareLink, shareToken, expirationDate, matchedAssets
+ *
+ * @see <a href="https://experienceleague.adobe.com/en/docs/experience-manager-learn/getting-started-with-aem-headless/authentication/service-credentials">
+ *      AEM Developer Console Service Credentials</a>
  */
 @Component(service = Servlet.class, property = {
         "sling.servlet.paths=/bin/cartology/sharelink",
-        "sling.servlet.methods=GET"
+        "sling.servlet.methods=POST"
 })
-public class AssetShareLinkServlet extends SlingSafeMethodsServlet {
+@Designate(ocd = ShareLinkConfig.class)
+public class AssetShareLinkServlet extends SlingAllMethodsServlet {
 
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LoggerFactory.getLogger(AssetShareLinkServlet.class);
@@ -68,13 +86,27 @@ public class AssetShareLinkServlet extends SlingSafeMethodsServlet {
             "/adobe/repository/;api=operations;t=";
     private static final String CONTENT_TYPE_ASSET_OPERATION =
             "application/vnd.adobe.asset-operation+json";
+    private static final String BEARER_PREFIX = "bearer ";
 
     @Reference
     private QueryBuilder queryBuilder;
 
+    private boolean localDevMode;
+    private String localDevUser;
+    private String localDevPassword;
+
+    @Activate
+    @Modified
+    protected void activate(ShareLinkConfig config) {
+        this.localDevMode = config.localDevMode();
+        this.localDevUser = config.localDevUser();
+        this.localDevPassword = config.localDevPassword();
+        LOG.info("AssetShareLinkServlet configured [localDevMode={}]", localDevMode);
+    }
+
     @Override
-    protected void doGet(SlingHttpServletRequest request,
-                         SlingHttpServletResponse response)
+    protected void doPost(SlingHttpServletRequest request,
+                          SlingHttpServletResponse response)
             throws ServletException, IOException {
 
         response.setContentType("application/json");
@@ -82,12 +114,66 @@ public class AssetShareLinkServlet extends SlingSafeMethodsServlet {
 
         JsonObject jsonResponse = new JsonObject();
 
-        // Check for direct folder path or metadata search
-        String folderPath = request.getParameter("folderPath");
-        String channel = request.getParameter("channel");
-        String campaignType = request.getParameter("campaignType");
-        String mediaFormat = request.getParameter("mediaFormat");
+        // --- Authentication: extract and validate bearer token ---
+        String authHeader = request.getHeader("Authorization");
+        String authHeaderForRepo;
 
+        if (authHeader != null && authHeader.toLowerCase().startsWith(BEARER_PREFIX)) {
+            // Bearer token present — use it for the repository operations call
+            authHeaderForRepo = authHeader;
+        } else if (localDevMode) {
+            // Local SDK fallback: construct Basic Auth from OSGi config
+            LOG.warn("No Bearer token provided; using local dev Basic Auth fallback.");
+            String credentials = Base64.getEncoder().encodeToString(
+                    (localDevUser + ":" + localDevPassword).getBytes(StandardCharsets.UTF_8));
+            authHeaderForRepo = "Basic " + credentials;
+        } else {
+            // Cloud Service: bearer token is mandatory
+            response.setStatus(SlingHttpServletResponse.SC_UNAUTHORIZED);
+            jsonResponse.addProperty("status", "UNAUTHORIZED");
+            jsonResponse.addProperty("error",
+                    "Missing or invalid Authorization header. A Bearer token from "
+                            + "AEM Developer Console service credentials is required.");
+            jsonResponse.addProperty("success", false);
+            response.getWriter().write(jsonResponse.toString());
+            return;
+        }
+
+        // --- Parse JSON request body ---
+        String channel = null;
+        String campaignType = null;
+        String mediaFormat = null;
+        String folderPath = null;
+
+        try {
+            StringBuilder sb = new StringBuilder();
+            try (BufferedReader reader = request.getReader()) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    sb.append(line);
+                }
+            }
+
+            String body = sb.toString().trim();
+            if (!body.isEmpty()) {
+                JsonObject requestJson = JsonParser.parseString(body).getAsJsonObject();
+                channel = getJsonString(requestJson, "channel");
+                campaignType = getJsonString(requestJson, "campaignType");
+                mediaFormat = getJsonString(requestJson, "mediaFormat");
+                folderPath = getJsonString(requestJson, "folderPath");
+            }
+        } catch (Exception e) {
+            LOG.warn("Failed to parse JSON request body", e);
+            response.setStatus(SlingHttpServletResponse.SC_BAD_REQUEST);
+            jsonResponse.addProperty("status", "BAD_REQUEST");
+            jsonResponse.addProperty("error",
+                    "Invalid JSON request body: " + e.getMessage());
+            jsonResponse.addProperty("success", false);
+            response.getWriter().write(jsonResponse.toString());
+            return;
+        }
+
+        // --- Resolve asset paths ---
         List<String> assetPaths = new ArrayList<String>();
 
         if (folderPath != null && !folderPath.trim().isEmpty()) {
@@ -109,7 +195,7 @@ public class AssetShareLinkServlet extends SlingSafeMethodsServlet {
             return;
         }
 
-        // Build base URL
+        // --- Build base URL ---
         String baseUrl = buildBaseUrl(request);
 
         // Expiration: 2 weeks from now
@@ -120,7 +206,7 @@ public class AssetShareLinkServlet extends SlingSafeMethodsServlet {
         sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
         String expiryDateStr = sdf.format(expirationCal.getTime());
 
-        // Build the share operation JSON body
+        // --- Build the share operation JSON body ---
         String repositoryId = request.getServerName();
 
         JsonObject requestBody = new JsonObject();
@@ -138,7 +224,7 @@ public class AssetShareLinkServlet extends SlingSafeMethodsServlet {
         }
         requestBody.add("target", targets);
 
-        // Call the OOTB repository operations API
+        // --- Call the OOTB repository operations API ---
         try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
 
             String operationsUrl = baseUrl + REPOSITORY_OPERATIONS_PATH
@@ -146,21 +232,8 @@ public class AssetShareLinkServlet extends SlingSafeMethodsServlet {
 
             HttpPost httpPost = new HttpPost(operationsUrl);
 
-            // Forward auth from incoming request, or use Basic Auth fallback
-            String authHeader = request.getHeader("Authorization");
-            if (authHeader != null && !authHeader.isEmpty()) {
-                httpPost.setHeader("Authorization", authHeader);
-            } else {
-                // Fallback: forward cookies if present, else use Basic Auth (local POC)
-                String cookieHeader = request.getHeader("Cookie");
-                if (cookieHeader != null && !cookieHeader.isEmpty()) {
-                    httpPost.setHeader("Cookie", cookieHeader);
-                }
-                String basicAuth = Base64.getEncoder()
-                        .encodeToString("admin:admin".getBytes(StandardCharsets.UTF_8));
-                httpPost.setHeader("Authorization", "Basic " + basicAuth);
-            }
-
+            // Forward the resolved auth header (Bearer token or local Basic Auth)
+            httpPost.setHeader("Authorization", authHeaderForRepo);
             httpPost.setHeader("Content-Type", CONTENT_TYPE_ASSET_OPERATION);
             httpPost.setEntity(new StringEntity(requestBody.toString(), StandardCharsets.UTF_8));
 
@@ -215,6 +288,18 @@ public class AssetShareLinkServlet extends SlingSafeMethodsServlet {
         }
 
         response.getWriter().write(jsonResponse.toString());
+    }
+
+    /**
+     * Extracts a string value from a JSON object, returning {@code null}
+     * if the key is missing or the value is not a string/primitive.
+     */
+    private String getJsonString(JsonObject json, String key) {
+        if (json.has(key) && json.get(key).isJsonPrimitive()) {
+            String value = json.get(key).getAsString();
+            return (value != null && !value.trim().isEmpty()) ? value.trim() : null;
+        }
+        return null;
     }
 
     /**
