@@ -121,6 +121,11 @@ public class AssetShareLinkServlet extends SlingAllMethodsServlet {
         if (authHeader != null && authHeader.toLowerCase().startsWith(BEARER_PREFIX)) {
             // Bearer token present — use it for the repository operations call
             authHeaderForRepo = authHeader;
+            String tokenValue = authHeader.substring(BEARER_PREFIX.length()).trim();
+            LOG.info("Auth: Bearer token detected [length={}, first10={}...]",
+                    tokenValue.length(), tokenValue.substring(0, Math.min(10, tokenValue.length())));
+            // Attempt to extract client_id from JWT payload for diagnostic purposes
+            extractAndLogJwtClientId(tokenValue);
         } else if (localDevMode) {
             // Local SDK fallback: construct Basic Auth from OSGi config
             LOG.warn("No Bearer token provided; using local dev Basic Auth fallback.");
@@ -230,6 +235,11 @@ public class AssetShareLinkServlet extends SlingAllMethodsServlet {
             String operationsUrl = baseUrl + REPOSITORY_OPERATIONS_PATH
                     + System.currentTimeMillis();
 
+            LOG.info("Repository operations URL: {}", operationsUrl);
+            LOG.info("Auth type being forwarded: {}",
+                    authHeaderForRepo.startsWith("Basic") ? "Basic" : "Bearer");
+            LOG.info("Request payload: {}", requestBody.toString());
+
             HttpPost httpPost = new HttpPost(operationsUrl);
 
             // Forward the resolved auth header (Bearer token or local Basic Auth)
@@ -243,6 +253,14 @@ public class AssetShareLinkServlet extends SlingAllMethodsServlet {
                     httpResponse.getEntity(), StandardCharsets.UTF_8);
 
             LOG.info("Share operation response [status={}]: {}", statusCode, responseBody);
+
+            // Log response headers for 4xx errors to aid debugging
+            if (statusCode >= 400) {
+                org.apache.http.Header[] respHeaders = httpResponse.getAllHeaders();
+                for (org.apache.http.Header h : respHeaders) {
+                    LOG.warn("Response header: {} = {}", h.getName(), h.getValue());
+                }
+            }
 
             if (statusCode >= 200 && statusCode < 300) {
                 JsonObject ootbResponse = JsonParser.parseString(responseBody)
@@ -381,5 +399,39 @@ public class AssetShareLinkServlet extends SlingAllMethodsServlet {
             sb.append(":").append(serverPort);
         }
         return sb.toString();
+    }
+
+    /**
+     * Attempts to decode the JWT payload (second segment) and log the client_id claim.
+     * This helps verify which IMS Client ID needs to be allowlisted in api.yaml.
+     * JWT is structured as: header.payload.signature (Base64URL encoded).
+     */
+    private void extractAndLogJwtClientId(String token) {
+        try {
+            String[] parts = token.split("\\.");
+            if (parts.length >= 2) {
+                // JWT payload is Base64URL encoded (no padding)
+                String payload = new String(
+                        Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
+                LOG.info("JWT payload (decoded): {}", payload);
+
+                // Extract client_id using simple string parsing (avoid adding JSON dependency)
+                JsonObject payloadJson = JsonParser.parseString(payload).getAsJsonObject();
+                if (payloadJson.has("client_id")) {
+                    LOG.info(">>> IMS Client ID from token: {}", payloadJson.get("client_id").getAsString());
+                    LOG.info(">>> This is the value that must be in config/api.yaml allowedClientIDs");
+                }
+                if (payloadJson.has("iss")) {
+                    LOG.info("JWT issuer (iss): {}", payloadJson.get("iss").getAsString());
+                }
+                if (payloadJson.has("sub")) {
+                    LOG.info("JWT subject (sub): {}", payloadJson.get("sub").getAsString());
+                }
+            } else {
+                LOG.info("Token is not a JWT (no dot-separated segments). It may be an opaque access token.");
+            }
+        } catch (Exception e) {
+            LOG.warn("Could not decode JWT payload for diagnostics: {}", e.getMessage());
+        }
     }
 }
