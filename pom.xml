@@ -192,6 +192,14 @@ Bundle-DocURL:
               <artifactId>scriptingbundle-maven-plugin</artifactId>
               <version>0.5.0</version>
             </dependency>
+            <!-- ACS AEM Commons -->
+            <dependency>
+              <groupId>com.adobe.acs</groupId>
+              <artifactId>acs-aem-commons-all</artifactId>
+              <version>6.17.4</version>
+              <classifier>cloud</classifier>
+              <type>zip</type>
+            </dependency>
           </dependencies>
         </plugin>
         <plugin>
