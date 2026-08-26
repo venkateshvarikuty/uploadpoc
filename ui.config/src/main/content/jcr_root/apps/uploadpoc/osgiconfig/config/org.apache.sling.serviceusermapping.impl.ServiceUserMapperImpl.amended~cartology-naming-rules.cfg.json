@@ -1,0 +1,5 @@
+{
+    "user.mapping": [
+        "uploadpoc.core:cartology-naming-rules=cartology-naming-rules-service"
+    ]
+}

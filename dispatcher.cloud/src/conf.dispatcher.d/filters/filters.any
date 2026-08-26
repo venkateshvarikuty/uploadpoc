@@ -16,3 +16,8 @@ $include "./default_filters.any"
 /0200 { /type "allow" /method "GET" /url "/bin/assetShareLink" }
 /0201 { /type "allow" /method "POST" /url "/bin/upload" }
 /0202 { /type "allow" /method "POST" /url "/bin/cartology/sharelink" }
+
+# Allow Cartology Naming Rules API
+/0210 { /type "allow" /method "GET"    /url "/api/cartology/naming-rules" }
+/0211 { /type "allow" /method "PUT"    /url "/api/cartology/naming-rules" }
+/0212 { /type "allow" /method "DELETE" /url "/api/cartology/naming-rules" }

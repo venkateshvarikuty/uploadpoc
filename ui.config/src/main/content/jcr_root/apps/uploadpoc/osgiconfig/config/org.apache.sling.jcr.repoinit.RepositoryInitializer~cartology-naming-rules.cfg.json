@@ -1,0 +1,7 @@
+{
+    "scripts": [
+        "create service user cartology-naming-rules-service with path system/cartology",
+        "create path (nt:unstructured) /conf/cartology/naming-rules/mappings",
+        "set ACL for cartology-naming-rules-service\n  allow jcr:read,rep:write on /conf/cartology/naming-rules\nend"
+    ]
+}
