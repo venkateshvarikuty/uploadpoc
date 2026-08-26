@@ -42,7 +42,7 @@ import java.util.List;
  * Basic Auth fallback can be enabled via OSGi configuration.
  */
 @Component(service = Servlet.class, property = {
-        "sling.servlet.paths=/api/cartology/naming-rules",
+        "sling.servlet.paths=/bin/cartology/naming-rules",
         "sling.servlet.methods=GET",
         "sling.servlet.methods=PUT",
         "sling.servlet.methods=DELETE"
