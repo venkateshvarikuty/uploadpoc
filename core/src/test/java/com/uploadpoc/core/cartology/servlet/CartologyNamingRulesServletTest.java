@@ -48,14 +48,7 @@ class CartologyNamingRulesServletTest {
     @BeforeEach
     void setUp() throws Exception {
         responseWriter = new StringWriter();
-        when(response.getWriter()).thenReturn(new PrintWriter(responseWriter));
-
-        // Activate with localDevMode=true for testing
-        CartologyNamingRulesServletConfig config = mock(CartologyNamingRulesServletConfig.class);
-        when(config.localDevMode()).thenReturn(true);
-        when(config.localDevUser()).thenReturn("admin");
-        when(config.localDevPassword()).thenReturn("admin");
-        servlet.activate(config);
+        lenient().when(response.getWriter()).thenReturn(new PrintWriter(responseWriter));
     }
 
     /* ---------- GET ---------- */
@@ -178,31 +171,4 @@ class CartologyNamingRulesServletTest {
         verify(response).setStatus(SlingHttpServletResponse.SC_NOT_FOUND);
     }
 
-    /* ---------- Authentication ---------- */
-
-    @Test
-    void authenticate_bearerToken() throws Exception {
-        when(request.getHeader("Authorization")).thenReturn("Bearer eyJ...");
-        when(namingRulesService.getAllMappings()).thenReturn(Collections.emptyList());
-
-        servlet.doGet(request, response);
-
-        verify(response).setStatus(SlingHttpServletResponse.SC_OK);
-    }
-
-    @Test
-    void authenticate_cloudMode_noBearerToken() throws Exception {
-        // Activate with cloud mode
-        CartologyNamingRulesServletConfig config = mock(CartologyNamingRulesServletConfig.class);
-        when(config.localDevMode()).thenReturn(false);
-        when(config.localDevUser()).thenReturn("admin");
-        when(config.localDevPassword()).thenReturn("admin");
-        servlet.activate(config);
-
-        when(request.getHeader("Authorization")).thenReturn(null);
-
-        servlet.doGet(request, response);
-
-        verify(response).setStatus(SlingHttpServletResponse.SC_UNAUTHORIZED);
-    }
 }

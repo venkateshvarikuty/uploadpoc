@@ -1,5 +1,7 @@
 package com.uploadpoc.core.cartology.model;
 
+import java.util.Objects;
+
 /**
  * Represents a valid Channel / Campaign Type / Media Format combination
  * as maintained by the 3rd-party application.
@@ -45,7 +47,7 @@ public class NamingRuleMapping {
         if (o == null || getClass() != o.getClass()) return false;
         NamingRuleMapping that = (NamingRuleMapping) o;
         if (!channel.equals(that.channel)) return false;
-        if (campaignType != null ? !campaignType.equals(that.campaignType) : that.campaignType != null) return false;
+        if (!Objects.equals(campaignType, that.campaignType)) return false;
         return mediaFormat.equals(that.mediaFormat);
     }
 
