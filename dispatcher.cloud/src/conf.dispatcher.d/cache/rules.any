@@ -5,3 +5,7 @@
 #
 
 $include "./default_rules.any"
+
+# Never cache dynamic ZIP downloads or token-creation responses
+/0100 { /type "deny" /url "/bin/cartology/assets/download*" }
+/0101 { /type "deny" /url "/bin/cartology/assets/zip*" }

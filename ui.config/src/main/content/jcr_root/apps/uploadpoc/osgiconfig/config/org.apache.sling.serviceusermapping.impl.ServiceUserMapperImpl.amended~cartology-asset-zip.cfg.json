@@ -1,0 +1,6 @@
+{
+    "user.mapping": [
+        "uploadpoc.core:cartology-asset-zip-reader=cartology-asset-zip-reader-service",
+        "uploadpoc.core:cartology-asset-zip-writer=cartology-asset-zip-writer-service"
+    ]
+}

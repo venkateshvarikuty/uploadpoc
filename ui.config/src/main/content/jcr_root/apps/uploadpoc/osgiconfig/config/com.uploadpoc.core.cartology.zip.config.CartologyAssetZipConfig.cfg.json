@@ -1,0 +1,8 @@
+{
+    "damRootPath": "/content/dam/woolworths-mrm/cartology",
+    "defaultExpiryHours": 24,
+    "maxAssetsPerRequest": 500,
+    "maxTotalZipSizeBytes": 1073741824,
+    "publicDownloadBaseUrl": "http://localhost:4503",
+    "authorizedPrincipals": []
+}

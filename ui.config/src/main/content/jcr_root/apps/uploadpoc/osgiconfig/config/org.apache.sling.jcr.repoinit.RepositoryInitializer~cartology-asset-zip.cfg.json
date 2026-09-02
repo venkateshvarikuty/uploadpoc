@@ -1,0 +1,9 @@
+{
+    "scripts": [
+        "create service user cartology-asset-zip-reader-service with path system/cartology",
+        "create service user cartology-asset-zip-writer-service with path system/cartology",
+        "create path (nt:unstructured) /var/cartology/downloads",
+        "set ACL for cartology-asset-zip-reader-service\n  allow jcr:read on /content/dam/woolworths-mrm/cartology\nend",
+        "set ACL for cartology-asset-zip-writer-service\n  allow jcr:read on /content/dam/woolworths-mrm/cartology\n  allow jcr:read,rep:write on /var/cartology/downloads\nend"
+    ]
+}
