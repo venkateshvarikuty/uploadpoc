@@ -3,6 +3,7 @@ package com.uploadpoc.core.cartology.validator;
 import com.uploadpoc.core.cartology.model.ParsedFilename;
 import com.uploadpoc.core.cartology.model.ValidationErrorCode;
 import com.uploadpoc.core.cartology.model.ValidationResult;
+import com.uploadpoc.core.cartology.normalizer.CartologyNameNormalizer;
 import com.uploadpoc.core.cartology.parser.CartologyFilenameParser;
 import com.uploadpoc.core.cartology.service.CartologyConfigurationService;
 
@@ -34,6 +35,9 @@ public class CartologyFilenameValidator {
     @Reference
     private CartologyConfigurationService configurationService;
 
+        @Reference
+        private CartologyNameNormalizer nameNormalizer;
+
     /**
      * Validates the given asset filename.
      *
@@ -60,8 +64,8 @@ public class CartologyFilenameValidator {
             return ValidationResult.failure(
                     ValidationErrorCode.INVALID_FILENAME_FORMAT,
                     "The filename '" + filename + "' does not match the expected naming pattern. "
-                            + "Expected: Channel_CampaignType_MediaFormat_AssetName.ext "
-                            + "or Channel_MediaFormat_AssetName.ext");
+                            + "Expected: Channel_CampaignType_MediaFormat.ext "
+                            + "or Channel_MediaFormat.ext, with an optional _AssetName segment.");
         }
 
         // --- Phase B: business mapping validation ---
@@ -121,8 +125,13 @@ public class CartologyFilenameValidator {
                     parsed);
         }
 
-        // All checks passed
+        // All checks passed. Keep channel normalized for routing, but expose the
+        // configured display form of mediaFormat for the destination folder.
+        ParsedFilename resultParsed = new ParsedFilename(
+                parsed.getChannel(), parsed.getCampaignType(),
+                nameNormalizer.toDisplayName(parsed.getMediaFormat()),
+                parsed.getAssetName(), parsed.getExtension());
         LOG.debug("Cartology filename validation passed: asset={}", filename);
-        return ValidationResult.success(parsed);
+        return ValidationResult.success(resultParsed);
     }
 }
