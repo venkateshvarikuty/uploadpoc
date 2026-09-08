@@ -17,9 +17,9 @@ import java.util.Set;
  * Supports two filename patterns:
  * <ol>
  *   <li><b>With campaign type:</b>
- *       {@code Channel_Campaign-Type_Media-Format_Asset-Name.ext}</li>
+ *       {@code Channel_Campaign-Type_Media-Format[ _Asset-Name].ext}</li>
  *   <li><b>Without campaign type:</b>
- *       {@code Channel_Media-Format_Asset-Name.ext}</li>
+ *       {@code Channel_Media-Format[ _Asset-Name].ext}</li>
  * </ol>
  * <p>
  * The parser uses the {@link CartologyConfigurationCache} to identify which
@@ -75,8 +75,8 @@ public class CartologyFilenameParser {
 
         // 2. Split by underscore
         String[] segments = basename.split("_");
-        if (segments.length < 3) {
-            // Minimum: Channel_MediaFormat_AssetName
+        if (segments.length < 2) {
+            // Minimum: Channel_MediaFormat
             LOG.debug("Too few segments in filename: {}", filename);
             return null;
         }
@@ -93,7 +93,7 @@ public class CartologyFilenameParser {
         // 1 segment "Some-Long-Channel" after normalization too, since spaces become
         // hyphens and underscores are the delimiter).
         // In practice, each segment between underscores is already a normalised token.
-        for (int i = 1; i <= segments.length - 2; i++) {
+        for (int i = 1; i <= segments.length - 1; i++) {
             StringBuilder channelBuilder = new StringBuilder();
             for (int j = 0; j < i; j++) {
                 if (j > 0) channelBuilder.append("_");
@@ -122,26 +122,28 @@ public class CartologyFilenameParser {
         int remaining = segments.length - channelEndIndex;
 
         if (hasCampaignType) {
-            // Pattern: Channel_CampaignType_MediaFormat_AssetName
-            if (remaining < 3) {
+            // Pattern: Channel_CampaignType_MediaFormat[_AssetName]
+            if (remaining < 2) {
                 LOG.debug("Channel '{}' expects campaign type but not enough segments: {}",
                         matchedChannel, filename);
                 return null;
             }
             String campaignType = segments[channelEndIndex];
             String mediaFormat = segments[channelEndIndex + 1];
-            String assetName = joinSegments(segments, channelEndIndex + 2);
+            String assetName = remaining > 2
+                    ? joinSegments(segments, channelEndIndex + 2) : null;
 
             return new ParsedFilename(matchedChannel, campaignType, mediaFormat,
                     assetName, extension);
         } else {
-            // Pattern: Channel_MediaFormat_AssetName
-            if (remaining < 2) {
+            // Pattern: Channel_MediaFormat[_AssetName]
+            if (remaining < 1) {
                 LOG.debug("Not enough segments after channel '{}': {}", matchedChannel, filename);
                 return null;
             }
             String mediaFormat = segments[channelEndIndex];
-            String assetName = joinSegments(segments, channelEndIndex + 1);
+            String assetName = remaining > 1
+                    ? joinSegments(segments, channelEndIndex + 1) : null;
 
             return new ParsedFilename(matchedChannel, null, mediaFormat,
                     assetName, extension);

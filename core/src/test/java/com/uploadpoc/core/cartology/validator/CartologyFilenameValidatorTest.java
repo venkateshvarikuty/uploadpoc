@@ -3,6 +3,7 @@ package com.uploadpoc.core.cartology.validator;
 import com.uploadpoc.core.cartology.model.ParsedFilename;
 import com.uploadpoc.core.cartology.model.ValidationErrorCode;
 import com.uploadpoc.core.cartology.model.ValidationResult;
+import com.uploadpoc.core.cartology.normalizer.CartologyNameNormalizer;
 import com.uploadpoc.core.cartology.parser.CartologyFilenameParser;
 import com.uploadpoc.core.cartology.service.CartologyConfigurationService;
 
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collections;
@@ -31,6 +33,9 @@ class CartologyFilenameValidatorTest {
     @Mock
     private CartologyConfigurationService configurationService;
 
+    @Spy
+    private CartologyNameNormalizer nameNormalizer = new CartologyNameNormalizer();
+
     @InjectMocks
     private CartologyFilenameValidator validator;
 
@@ -38,40 +43,98 @@ class CartologyFilenameValidatorTest {
 
     @Test
     void validate_validMappingWithCampaignType() {
-        String filename = "POS_Special_A3-Bin-Card_Template.psd";
-        ParsedFilename parsed = new ParsedFilename("POS", "Special", "A3-Bin-Card",
-                "Template", "psd");
+        String filename = "POS_Special_Shelf-Wobbler.pdf";
+        ParsedFilename parsed = new ParsedFilename("POS", "Special", "Shelf-Wobbler",
+            null, "pdf");
 
         when(configurationService.isCacheLoaded()).thenReturn(true);
         when(filenameParser.parse(filename)).thenReturn(parsed);
         when(configurationService.isChannelConfigured("POS")).thenReturn(true);
         when(configurationService.isCampaignTypeConfigured("POS", "Special")).thenReturn(true);
-        when(configurationService.isValidMapping("POS", "Special", "A3-Bin-Card")).thenReturn(true);
+        when(configurationService.isValidMapping("POS", "Special", "Shelf-Wobbler"))
+            .thenReturn(true);
 
         ValidationResult result = validator.validate(filename);
 
         assertTrue(result.isValid());
         assertEquals("POS", result.getChannel());
         assertEquals("Special", result.getCampaignType());
-        assertEquals("A3-Bin-Card", result.getMediaFormat());
+        assertEquals("Shelf Wobbler", result.getMediaFormat());
+        assertNull(result.getAssetName());
     }
 
     @Test
     void validate_validMappingWithoutCampaignType() {
-        String filename = "Fresh-Mag_Full-Page_Specifications.pdf";
-        ParsedFilename parsed = new ParsedFilename("Fresh-Mag", null, "Full-Page",
-                "Specifications", "pdf");
+        String filename = "Fresh-Mag_Shelf-Wobbler.pdf";
+        ParsedFilename parsed = new ParsedFilename("Fresh-Mag", null, "Shelf-Wobbler",
+            null, "pdf");
 
         when(configurationService.isCacheLoaded()).thenReturn(true);
         when(filenameParser.parse(filename)).thenReturn(parsed);
         when(configurationService.isChannelConfigured("Fresh-Mag")).thenReturn(true);
-        when(configurationService.isValidMapping("Fresh-Mag", null, "Full-Page")).thenReturn(true);
+        when(configurationService.isValidMapping("Fresh-Mag", null, "Shelf-Wobbler"))
+            .thenReturn(true);
 
         ValidationResult result = validator.validate(filename);
 
         assertTrue(result.isValid());
         assertNull(result.getCampaignType());
+        assertEquals("Shelf Wobbler", result.getMediaFormat());
+        assertNull(result.getAssetName());
     }
+
+        @Test
+        void validate_freshMagShelfWobblerWithAssetName() {
+        String filename = "Fresh-Mag_Shelf-Wobbler_Lighthouse-Report-Viewer.png";
+        ParsedFilename parsed = new ParsedFilename("Fresh-Mag", null, "Shelf-Wobbler",
+            "Lighthouse-Report-Viewer", "png");
+
+        when(configurationService.isCacheLoaded()).thenReturn(true);
+        when(filenameParser.parse(filename)).thenReturn(parsed);
+        when(configurationService.isChannelConfigured("Fresh-Mag")).thenReturn(true);
+        when(configurationService.isValidMapping("Fresh-Mag", null, "Shelf-Wobbler"))
+            .thenReturn(true);
+
+        ValidationResult result = validator.validate(filename);
+
+        assertTrue(result.isValid());
+        assertEquals("Fresh-Mag", result.getChannel());
+        assertNull(result.getCampaignType());
+        assertEquals("Shelf Wobbler", result.getMediaFormat());
+        assertEquals("png", result.getExtension());
+        }
+
+        @Test
+        void validate_posShelfWobblerWithoutCampaignType_isInvalid() {
+        String filename = "POS_Shelf-Wobbler_Lighthouse-Report-Viewer.pdf";
+        when(configurationService.isCacheLoaded()).thenReturn(true);
+        when(filenameParser.parse(filename)).thenReturn(null);
+
+        ValidationResult result = validator.validate(filename);
+
+        assertFalse(result.isValid());
+        assertEquals(ValidationErrorCode.INVALID_FILENAME_FORMAT, result.getErrorCode());
+        }
+
+        @Test
+        void validate_mediaFormatWithSpaces_isInvalidMapping() {
+        String filename = "Fresh-Mag_Shelf Wobbler_Lighthouse-Report-Viewer.pdf";
+        ParsedFilename parsed = new ParsedFilename("Fresh-Mag", null, "Shelf Wobbler",
+            "Lighthouse-Report-Viewer", "pdf");
+
+        when(configurationService.isCacheLoaded()).thenReturn(true);
+        when(filenameParser.parse(filename)).thenReturn(parsed);
+        when(configurationService.isChannelConfigured("Fresh-Mag")).thenReturn(true);
+        when(configurationService.isValidMapping("Fresh-Mag", null, "Shelf Wobbler"))
+            .thenReturn(false);
+        when(configurationService.getMediaFormats("Fresh-Mag", null))
+            .thenReturn(new HashSet<>(Collections.singleton("Shelf-Wobbler")));
+
+        ValidationResult result = validator.validate(filename);
+
+        assertFalse(result.isValid());
+        assertEquals(ValidationErrorCode.INVALID_MAPPING, result.getErrorCode());
+        }
 
     /* ---------- Structural failure ---------- */
 

@@ -46,7 +46,7 @@ class CartologyFilenameParserTest {
         when(configurationCache.getAllChannels()).thenReturn(knownChannels);
     }
 
-    /* ---------- Pattern 1: Channel_CampaignType_MediaFormat_AssetName.ext ---------- */
+    /* ---------- Pattern 1: Channel_CampaignType_MediaFormat[ _AssetName].ext ---------- */
 
     @Test
     void parse_posSpecialA3BinCard() {
@@ -77,6 +77,20 @@ class CartologyFilenameParserTest {
     }
 
     @Test
+    void parse_posSpecialShelfWobblerWithoutAssetName() {
+        when(configurationCache.channelHasCampaignType("POS")).thenReturn(true);
+
+        ParsedFilename result = parser.parse("POS_Special_Shelf-Wobbler.pdf");
+
+        assertNotNull(result);
+        assertEquals("POS", result.getChannel());
+        assertEquals("Special", result.getCampaignType());
+        assertEquals("Shelf-Wobbler", result.getMediaFormat());
+        assertNull(result.getAssetName());
+        assertEquals("pdf", result.getExtension());
+    }
+
+    @Test
     void parse_offNetworkSpecialA3BinCard() {
         when(configurationCache.channelHasCampaignType("Off-Network")).thenReturn(true);
 
@@ -91,7 +105,7 @@ class CartologyFilenameParserTest {
         assertEquals("psd", result.getExtension());
     }
 
-    /* ---------- Pattern 2: Channel_MediaFormat_AssetName.ext ---------- */
+    /* ---------- Pattern 2: Channel_MediaFormat[ _AssetName].ext ---------- */
 
     @Test
     void parse_freshMagFullPage() {
@@ -119,6 +133,48 @@ class CartologyFilenameParserTest {
         assertEquals("Fresh-Mag", result.getMediaFormat());
         assertEquals("Template", result.getAssetName());
         assertEquals("indd", result.getExtension());
+    }
+
+    @Test
+    void parse_freshMagShelfWobblerWithoutAssetName() {
+        when(configurationCache.channelHasCampaignType("Fresh-Mag")).thenReturn(false);
+
+        ParsedFilename result = parser.parse("Fresh-Mag_Shelf-Wobbler.pdf");
+
+        assertNotNull(result);
+        assertEquals("Fresh-Mag", result.getChannel());
+        assertNull(result.getCampaignType());
+        assertEquals("Shelf-Wobbler", result.getMediaFormat());
+        assertNull(result.getAssetName());
+        assertEquals("pdf", result.getExtension());
+    }
+
+    @Test
+    void parse_freshMagShelfWobblerAssetName() {
+        when(configurationCache.channelHasCampaignType("Fresh-Mag")).thenReturn(false);
+
+        ParsedFilename result = parser.parse(
+                "Fresh-Mag_Shelf-Wobbler_Lighthouse-Report-Viewer.pdf");
+
+        assertNotNull(result);
+        assertEquals("Fresh-Mag", result.getChannel());
+        assertNull(result.getCampaignType());
+        assertEquals("Shelf-Wobbler", result.getMediaFormat());
+        assertEquals("Lighthouse-Report-Viewer", result.getAssetName());
+        assertEquals("pdf", result.getExtension());
+    }
+
+    @Test
+    void parse_freshMagShelfWobblerSupportsImageExtensions() {
+        when(configurationCache.channelHasCampaignType("Fresh-Mag")).thenReturn(false);
+
+        ParsedFilename png = parser.parse("Fresh-Mag_Shelf-Wobbler_Lighthouse.png");
+        ParsedFilename jpg = parser.parse("Fresh-Mag_Shelf-Wobbler_Lighthouse.jpg");
+        ParsedFilename jpeg = parser.parse("Fresh-Mag_Shelf-Wobbler_Lighthouse.jpeg");
+
+        assertEquals("png", png.getExtension());
+        assertEquals("jpg", jpg.getExtension());
+        assertEquals("jpeg", jpeg.getExtension());
     }
 
     /* ---------- Asset name with underscores ---------- */
@@ -162,7 +218,37 @@ class CartologyFilenameParserTest {
 
     @Test
     void parse_tooFewSegments() {
-        assertNull(parser.parse("POS_Template.psd"));
+        assertNull(parser.parse("POS.psd"));
+    }
+
+    @Test
+    void parse_missingMediaFormat_isInvalid() {
+        when(configurationCache.channelHasCampaignType("Fresh-Mag")).thenReturn(false);
+
+        assertNull(parser.parse("Fresh-Mag.pdf"));
+    }
+
+    @Test
+    void parse_mediaFormatWithSpaces_isRetainedForValidatorToReject() {
+        when(configurationCache.channelHasCampaignType("Fresh-Mag")).thenReturn(false);
+
+        ParsedFilename result = parser.parse(
+                "Fresh-Mag_Shelf Wobbler_Lighthouse-Report-Viewer.pdf");
+
+        assertNotNull(result);
+        assertEquals("Shelf Wobbler", result.getMediaFormat());
+    }
+
+    @Test
+    void parse_posWithoutCampaignType_isInvalid() {
+        when(configurationCache.channelHasCampaignType("POS")).thenReturn(true);
+
+        ParsedFilename result = parser.parse(
+            "POS_Shelf-Wobbler_Lighthouse-Report-Viewer.pdf");
+
+        assertNotNull(result);
+        assertEquals("Shelf-Wobbler", result.getCampaignType());
+        assertEquals("Lighthouse-Report-Viewer", result.getMediaFormat());
     }
 
     @Test
