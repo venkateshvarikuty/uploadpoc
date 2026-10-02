@@ -25,4 +25,10 @@ data:
       - "cm-p121280-e2245930-integration-1"
       - "7201dcbe994242baa35299c46d9152ed"
       - "a8c7261261884e618c11f401c903ff97"
+      - "d3cbbda0f09342e8b4d7f2207a30ef95"
+    publish:
+      - "d3cbbda0f09342e8b4d7f2207a30ef95"
+    preview:
+      - "d3cbbda0f09342e8b4d7f2207a30ef95"
+
 
