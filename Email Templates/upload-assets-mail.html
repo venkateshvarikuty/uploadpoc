@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cartology Asset Sharing</title>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #EBECED;
+            font-family: Helvetica, sans-serif;
+            color: #3A474E;
+        }
+
+        table {
+            border-collapse: collapse;
+        }
+
+        .container {
+            width: 900px;
+            margin: 30px auto;
+            background: #ffffff;
+            border: 1px solid #dcdcdc;
+        }
+
+        .header {
+            background: #3A474E;
+            color: #ffffff;
+            padding: 22px 30px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-family: "Fresh Sans", serif;
+            font-size: 26px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        .header h1 span {
+            color: #A5C84D;
+        }
+
+        .content {
+            padding: 30px;
+            font-size: 15px;
+            line-height: 24px;
+            color: #3A474E;
+        }
+
+        .wow-id-box {
+            background: #f7f7f8;
+            border-left: 4px solid #A5C84D;
+            border-radius: 0 4px 4px 0;
+            padding: 12px 18px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .wow-id-box strong {
+            color: #3A474E;
+        }
+
+        .info-box {
+            background: #f7f7f8;
+            border-left: 5px solid #A5C84D;
+            padding: 18px;
+            margin: 25px 0;
+        }
+
+        .info-box strong {
+            color: #3A474E;
+        }
+
+        .section-title {
+            font-size: 18px;
+            color: #3A474E;
+            font-weight: 700;
+            margin-top: 35px;
+            margin-bottom: 15px;
+        }
+
+        .cli-table {
+            width: 100%;
+            border: 1px solid #EBECED;
+            margin-bottom: 10px;
+        }
+
+        .cli-table th {
+            background: #3A474E;
+            color: #ffffff;
+            padding: 12px 14px;
+            text-align: left;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .cli-table td {
+            padding: 12px 14px;
+            border: 1px solid #EBECED;
+            color: #3A474E;
+        }
+
+        .cli-table tr:nth-child(even) {
+            background: #f7f7f8;
+        }
+
+        .resource-table {
+            width: 100%;
+            border: 1px solid #EBECED;
+            margin-bottom: 25px;
+        }
+
+        .resource-table th {
+            background: #3A474E;
+            color: #ffffff;
+            padding: 14px;
+            text-align: left;
+            font-size: 15px;
+            font-weight: 500;
+        }
+
+        .resource-table td {
+            padding: 14px;
+            border: 1px solid #EBECED;
+        }
+
+        .resource-table tr:nth-child(even) {
+            background: #f7f7f8;
+        }
+
+        .resource-label {
+            font-size: 15px;
+            font-weight: 700;
+            color: #3A474E;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        .button {
+            background: #A5C84D;
+            color: #000000 !important;
+            text-decoration: none;
+            padding: 10px 18px;
+            border-radius: 0px;
+            display: inline-block;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .button-secondary {
+            background: #3A474E;
+            color: #ffffff !important;
+            text-decoration: none;
+            padding: 10px 18px;
+            border-radius: 0px;
+            display: inline-block;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .note {
+            background: #f7f7f8;
+            border-left: 4px solid #A5C84D;
+            padding: 18px;
+            margin-top: 30px;
+        }
+
+        .note strong {
+            color: #3A474E;
+        }
+
+        .footer {
+            background: #3A474E;
+            padding: 25px 30px;
+            color: #EBECED;
+            font-size: 12px;
+            border-top: 3px solid #A5C84D;
+        }
+
+        .footer strong {
+            color: #ffffff;
+        }
+
+        .footer a {
+            color: #A5C84D;
+        }
+
+        .accent-bar {
+            background: linear-gradient(to right, #5DC49B, #A5C84D);
+            height: 4px;
+        }
+
+        @media only screen and (max-width: 920px) {
+            .container {
+                width: 100% !important;
+            }
+
+            .content,
+            .header,
+            .footer {
+                padding: 20px !important;
+            }
+
+            .button,
+            .button-secondary {
+                display: block;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <table width="100%" cellpadding="0" cellspacing="0" bgcolor="#EBECED" role="presentation">
+        <tr>
+            <td align="center">
+                <table class="container" cellpadding="0" cellspacing="0" role="presentation">
+                    <!-- ACCENT BAR -->
+
+                    <tr>
+                        <td class="accent-bar"></td>
+                    </tr>
+
+                    <!-- HEADER -->
+
+                    <tr>
+                        <td class="header">
+                            <h1><img src="https://www.cartology.com.au/content/dam/cartology/header-footer/cq5dam.thumbnail.319.319.png"
+                                    alt="Cartology" height="26" style="vertical-align: middle; margin-right: 8px;" />
+                                &mdash; Artwork Sharing</h1>
+                        </td>
+                    </tr>
+
+                    <!-- CONTENT -->
+
+                    <tr>
+                        <td class="content">
+                            <p>{{ProjectOwner}} shared assets with you.</p>
+
+                            <p>
+                                <strong>Campaign Name:</strong> {{ProjectName}}<br />
+                                <strong>Campaign ID:</strong> {{WoWCode}}<br />
+                                <strong>Campaign Start Date:</strong> {{HeaderStartDate}}
+                            </p>
+
+                            <p>
+                                Please find link below for assets that have been shared for your upcoming campaign
+                                booked with Cartology.<br />
+                            </p>
+
+                            <p>
+                               Please click on the link to access the Cartology Asset Manager to view and download all assets relating to (Campaign Name).
+                            </p>
+
+                            <!-- Campaign Assets -->
+                            <div class="section-title">Campaign Assets</div>
+
+                            <div class="resource-label">Specifications &amp; Guidelines</div>
+
+                            <table class="resource-table">
+                                <tr>
+                                    <th scope="col" width="60%">Item</th>
+                                    <th scope="col" width="40%">Read</th>
+                                </tr>
+                                <tr>
+                                    <td>Specifications &amp; Guidelines</td>
+                                    <td>
+                                        <a class="button" href="{{DownloadLink}}"> View Assets </a>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p>
+                                This link will be available until {{HeaderEndDate}}
+                            </p>
+
+                            <p>
+                                If you have any questions, please contact your Cartology Operations Executive at <a
+                                    href="mailto:{{OpsExecEmail}}" style="color: #095927;">{{OpsExecEmail}}</a>.
+                            </p>
+
+                            <p>
+                                Kind Regards,
+                                <br /><br />
+                                <strong>Cartology Operations</strong>
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- FOOTER -->
+
+                    <tr>
+                        <td class="footer">
+                            <img src="https://www.cartology.com.au/content/dam/cartology/header-footer/cq5dam.thumbnail.319.319.png"
+                                alt="Cartology" height="26" style="vertical-align: middle;" />
+
+                            <br /><br />
+
+                            This is an automated email generated by the Cartology Artwork Management System. Please
+                            do not reply to this email.
+
+                            <br /><br />
+
+                            &copy; {{CurrentYear}} Cartology. All rights reserved.
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+
+</html>
